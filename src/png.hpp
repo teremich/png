@@ -12,7 +12,7 @@ constexpr char tmp1 = tmp[1];
 constexpr char tmp2 = tmp[2];
 constexpr char tmp3 = tmp[3];
 
-struct Chunk{
+struct [[gnu::packed]] Chunk{
     uint32_t length;
     enum : uint32_t {
         IHDR = 0x52'44'48'49,
@@ -22,6 +22,9 @@ struct Chunk{
     } chunk_type;
     data_t chunkdata_and_crc;
 };
+
+//                            len+hdr+(chks+crc)
+static_assert(sizeof(Chunk) == 4 + 4 + 0);
 
 struct PNG_datastream{
     byte_t signature[8];
