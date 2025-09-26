@@ -19,11 +19,21 @@ bool checkHeader(PNG png) {
     return checkMagicBytes(png) && checkIHDR(png);
 }
 
+PNG findHeader(allocation_t file) {
+    for (size_t i = 0; i < file.size; i++) {
+        auto *const datastream = static_cast<PNG_datastream*>(file.ptr);
+        PNG png = {file.size-i, datastream};
+        if (checkHeader(png)) {
+            return png;
+        }
+    }
+    return {};
+}
+
 const PNG loadPNG(const char* filename) {
     const auto file = mapFile(filename);
-    auto *const datastream = static_cast<PNG_datastream*>(file.ptr);
-    const PNG png = {file.size, datastream};
-    if (checkHeader(png)) {
+    PNG png = findHeader(file);
+    if (png.totalSize) {
         return png;
     } else {
         unmapFile(file);

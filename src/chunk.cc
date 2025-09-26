@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <cstring>
+#include <cstdio>
 
 struct [[gnu::packed]] IHDR {
     uint32_t width, height;
@@ -35,8 +36,18 @@ bool checkIHDR(PNG png) {
         address += sizeof(Chunk) + __builtin_bswap32(currentChunk->length) + sizeof(crc_t)
     ) {
         currentChunk = reinterpret_cast<Chunk*>(address);
+        if (currentChunk->chunk_type == Chunk::IHDR) {
+            continue;
+        }
+        if (currentChunk->chunk_type == Chunk::IEND) {
+            return {};
+        }
         if (currentChunk->chunk_type == Chunk::IDAT) {
             break;
+        }
+        if (currentChunk->chunk_type & Chunk::CRITICAL_BIT) {
+            fprintf(stderr, "couldn't process critical Chunk: %4s\n", (char*)&currentChunk->chunk_type);
+            exit(1);
         }
     }
     allocation_t image_data{};

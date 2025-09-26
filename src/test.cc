@@ -26,6 +26,7 @@ struct Allocation{
 int main() {
     PNG png = loadPNG("dartboard.png");
     if (png.data == NULL) {
+        printf("file couldn't be loaded, possibly corrupted\n");
         return EXIT_FAILURE;
     }
     uint32_t width, height;

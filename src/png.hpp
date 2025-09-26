@@ -15,6 +15,7 @@ constexpr char tmp3 = tmp[3];
 struct [[gnu::packed]] Chunk{
     uint32_t length;
     enum : uint32_t {
+        CRITICAL_BIT = 1<<5,
         IHDR = 0x52'44'48'49,
         IDAT = 0x54'41'44'49,
         IEND = 0x44'4e'54'49,
