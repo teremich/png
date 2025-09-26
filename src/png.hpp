@@ -19,6 +19,7 @@ struct [[gnu::packed]] Chunk{
         IDAT = 0x54'41'44'49,
         IEND = 0x44'4e'54'49,
         sRGB = 0x42'47'52'73,
+        tRNS = 0x53'4e'52'74,
     } chunk_type;
     data_t chunkdata_and_crc;
 };
