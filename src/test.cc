@@ -4,39 +4,40 @@
 #include <cstdlib>
 
 struct Allocation{
-    static inline const auto deallocate = free;
+    static inline const auto deallocate = std::free;
     void* ptr;
-    size_t size;
+    std::size_t size;
 };
 
-[[nodiscard]] struct Allocation readIDAT(PNG png);
+[[nodiscard]] Allocation decompressIDAT(PNG png);
 
-// void printData(Allocation data) {
-//     for (int i = 0; i < data.size; i++) {
-//         printf("0x%02X ", static_cast<byte_t*>(data.ptr)[i]);
-//         if ((i % 8)-8 == -1) {
-//             printf("\t");
-//         }
-//         if ((i % 16)-16 == -1) {
-//             printf("\n");
-//         }
-//     }
-// }
+void printData(Allocation data) {
+    std::printf("allocation size: %zu\n", data.size);
+    for (int i = 0; i < data.size; i++) {
+        std::printf("0x%02X ", static_cast<byte_t*>(data.ptr)[i]);
+        if ((i % 8) == 8-1) {
+            std::printf("\t");
+        }
+        if ((i % 16) == 16-1) {
+            std::printf("\n");
+        }
+    }
+}
 
 int main() {
     PNG png = loadPNG("dartboard.png");
     if (png.data == NULL) {
-        printf("file couldn't be loaded, possibly corrupted\n");
+        std::printf("file couldn't be loaded, possibly corrupted\n");
         return EXIT_FAILURE;
     }
-    uint32_t width, height;
+    std::uint32_t width, height;
     getDimensions(png, &width, &height);
-    const auto image_data = readIDAT(png);
+    const auto image_data = decompressIDAT(png);
 
-    // printData(image_data);
+    printData(image_data);
 
     image_data.deallocate(image_data.ptr);
     unloadPNG(png);
-    printf("width: %u, height: %u\n", width, height);
+    std::printf("width: %u, height: %u\n", width, height);
     return 0;
 }

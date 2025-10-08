@@ -9,18 +9,18 @@ const byte_t PNG_MAGIC_BYTES[] {
 };
 
 bool checkMagicBytes(PNG png) {
-    return !memcmp(png.data->signature, PNG_MAGIC_BYTES, sizeof(PNG_MAGIC_BYTES));
+    return !std::memcmp(png.data->signature, PNG_MAGIC_BYTES, sizeof(PNG_MAGIC_BYTES));
 }
 
 bool checkHeader(PNG png) {
-    if (png.totalSize < sizeof(PNG_MAGIC_BYTES) + sizeof(Chunk) + sizeof(crc_t)) {
+    if (png.totalSize < sizeof(PNG_MAGIC_BYTES) + Chunk::minSize) {
         return false;
     }
     return checkMagicBytes(png) && checkIHDR(png);
 }
 
 PNG findHeader(allocation_t file) {
-    for (size_t i = 0; i < file.size; i++) {
+    for (std::size_t i = 0; i < file.size; i++) {
         auto *const datastream = static_cast<PNG_datastream*>(file.ptr);
         PNG png = {file.size-i, datastream};
         if (checkHeader(png)) {
