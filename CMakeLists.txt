@@ -12,6 +12,6 @@ src/chunk.cc
 src/datastream.cc
 src/file.cc
 )
-link_libraries(mypng z)
+target_link_libraries(mypng PRIVATE z)
 add_executable(test src/test.cc)
 target_link_libraries(test PRIVATE mypng)

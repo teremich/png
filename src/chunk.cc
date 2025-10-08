@@ -50,7 +50,6 @@ bool checkIHDR(PNG png) {
         current.address + Chunk::minSize + __builtin_bswap32(current.chunk->length) < end;
         current.address += Chunk::minSize + __builtin_bswap32(current.chunk->length)
     ) {
-        std::printf("processing chunk: %.4s\n", (char*)&current.chunk->chunk_type);
         if (
             current.chunk->chunk_type == Chunk::IHDR ||
             current.chunk->chunk_type == Chunk::PLTE
@@ -71,7 +70,7 @@ bool checkIHDR(PNG png) {
     }
     allocation_t image_data{};
     static const char* version = zlibVersion();
-    const size_t zOutputSize = 1024;
+    const size_t zOutputSize = 1<<14;
     byte_t *const zOutput = static_cast<byte_t*>(std::malloc(zOutputSize));
     // The fields
     // next_in, avail_in, zalloc, zfree and opaque
@@ -84,12 +83,10 @@ bool checkIHDR(PNG png) {
         .opaque = nullptr,  // optional data for this stream
     };
     assert(inflateInit(&stream) == Z_OK);
-    std::printf("initialized inflate stream\n");
     while (
         current.address < end - (Chunk::minSize + __builtin_bswap32(current.chunk->length))
         && current.chunk->chunk_type == Chunk::IDAT
     ) {
-        std::printf("idat chunk: %.4s\n", (char*)&current.chunk->chunk_type);
         IDAT* idat = current.chunk->chunkdata_and_crc;
         std::uint32_t length = __builtin_bswap32(current.chunk->length);
         assert(stream.avail_in == 0);
@@ -99,13 +96,9 @@ bool checkIHDR(PNG png) {
         stream.next_out = zOutput;
         stream.avail_out = zOutputSize;
 
-        std::printf("adding %u = std::min<std::ptrdiff_t>(%u, %zu) to stream\n", stream.avail_in, length, end-sizeof(crc_t)-current.chunk->chunkdata_and_crc);
-        std::printf("inflate: %d\n", inflate(&stream, Z_SYNC_FLUSH));
+        assert(inflate(&stream, Z_SYNC_FLUSH) == Z_OK);
         const size_t written = zOutputSize - stream.avail_out;
-        std::printf("getting %zu bytes from stream\n", written);
-        std::printf("prev size: %zu\n", image_data.size);
         image_data.size += written;
-        std::printf("next size: %zu\n", image_data.size);
 
         image_data.ptr = std::realloc(image_data.ptr, image_data.size);
         std::memcpy(
@@ -115,34 +108,30 @@ bool checkIHDR(PNG png) {
         );
         current.address += Chunk::minSize + length;
     }
-    if (current.address < end - Chunk::minSize) {
-        std::printf("stopped processing IDAT because we found following chunk type: %.4s\n", (char*)&current.chunk->chunk_type);
-    }
     inflate(&stream, Z_FINISH);
     for (int i = 0; i < 50 && stream.avail_in; i++) {
         stream.next_out = zOutput;
         stream.avail_out = zOutputSize;
-        std::printf("inflate: %d\n", inflate(&stream, Z_SYNC_FLUSH));
+        int r = inflate(&stream, Z_SYNC_FLUSH);
+        if (r == Z_STREAM_END) {
+            assert(stream.avail_in == 0);
+            break;
+        }
+        assert(r == Z_OK);
         const size_t written = zOutputSize - stream.avail_out;
-        std::printf("getting %zu bytes from stream\n", written);
-        std::printf("prev size: %zu\n", image_data.size);
         image_data.size += written;
-        std::printf("next size: %zu\n", image_data.size);
         image_data.ptr = std::realloc(image_data.ptr, image_data.size);
         std::memcpy(
             static_cast<byte_t*>(image_data.ptr) + image_data.size-written,
             zOutput,
             stream.next_out - zOutput
         );
-        std::printf("there are still %u bytes available after flush\n", stream.avail_in);
     }
     std::free(zOutput);
     if (stream.avail_in) {
-        std::printf("there are still %u bytes available after flush\n", stream.avail_in);
         std::exit(1);
     }
     inflateEnd(&stream);
-    std::printf("ended inflate stream\n");
     return image_data;
 }
 
