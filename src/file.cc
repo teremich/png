@@ -8,5 +8,5 @@
 }
 
 void unmapFile(allocation_t mappedFile) {
-    munmap(const_cast<void*>(mappedFile.ptr), mappedFile.size);
+    munmap(mappedFile.ptr, mappedFile.size);
 }

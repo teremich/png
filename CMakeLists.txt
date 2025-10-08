@@ -8,9 +8,10 @@ add_compile_options(-g -fsanitize=address)
 add_link_options(-fsanitize=address -flto)
 
 add_library(mypng
-src/chunk.cc
-src/datastream.cc
-src/file.cc
+    src/chunk.cc
+    src/datastream.cc
+    src/file.cc
+    src/image.cc
 )
 target_link_libraries(mypng PRIVATE z)
 add_executable(test src/test.cc)

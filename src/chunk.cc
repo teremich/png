@@ -27,19 +27,54 @@ struct sRGB{
     crc_t CRC;
 };
 
-bool checkIHDR(PNG png) {
+bool checkIHDR(const PNG& png) {
     Chunk* firstChunk = png.data->chunks;
     if ((uintptr_t)firstChunk >= (uintptr_t)png.data+png.totalSize-sizeof(IHDR)) {
         return false;
     }
     bool correct = true;
     correct = correct && (firstChunk->chunk_type == Chunk::IHDR);
-    correct = correct && ((IHDR*)firstChunk->chunkdata_and_crc)->compression_method == IHDR::METHOD_ZERO;
+    correct = correct && (reinterpret_cast<const IHDR*>(
+        firstChunk->chunkdata_and_crc
+        )->compression_method == IHDR::METHOD_ZERO);
+    correct = correct && (reinterpret_cast<const IHDR*>(
+        firstChunk->chunkdata_and_crc
+        )->filter_method == 0);
     correct = correct && (__builtin_bswap32(firstChunk->length) == sizeof(IHDR)-sizeof(crc_t));
     return correct;
 }
 
-[[nodiscard]] allocation_t decompressIDAT(PNG png) {
+uint8_t getColorType(const PNG& png) {
+    const Chunk* const firstChunk = png.data->chunks;
+    const IHDR* const header = reinterpret_cast<const IHDR*>(firstChunk->chunkdata_and_crc);
+    return header->color_type;
+}
+
+void loadPLTE(PNG& png) {
+    union {
+        Chunk* chunk;
+        byte_t* address;
+    } current = {.address = reinterpret_cast<byte_t*>(png.data->chunks)};
+    byte_t* end = current.address + png.totalSize;
+    for (
+        ;
+        current.address + Chunk::minSize + __builtin_bswap32(current.chunk->length) < end;
+        current.address += Chunk::minSize + __builtin_bswap32(current.chunk->length)
+    ) {
+        if (current.chunk->chunk_type == Chunk::PLTE) {
+            break;
+        }
+        if (current.chunk->chunk_type == Chunk::IEND) {
+            return;
+        }
+    }
+    // TODO: what if there is no IEND chunk?
+    png.palette.colors = reinterpret_cast<PNG::PLTE::Color*>(current.chunk->chunkdata_and_crc);
+    png.palette.num = current.chunk->length/sizeof(PNG::PLTE::Color);
+    std::printf("color palette loaded\n");
+}
+
+[[nodiscard]] allocation_t decompressIDAT(const PNG& png) {
     union {
         Chunk* chunk;
         byte_t* address;
@@ -115,16 +150,16 @@ bool checkIHDR(PNG png) {
         int r = inflate(&stream, Z_SYNC_FLUSH);
         if (r == Z_STREAM_END) {
             assert(stream.avail_in == 0);
-            break;
+        } else {
+            assert(r == Z_OK);
         }
-        assert(r == Z_OK);
         const size_t written = zOutputSize - stream.avail_out;
         image_data.size += written;
         image_data.ptr = std::realloc(image_data.ptr, image_data.size);
         std::memcpy(
             static_cast<byte_t*>(image_data.ptr) + image_data.size-written,
             zOutput,
-            stream.next_out - zOutput
+            written
         );
     }
     std::free(zOutput);
@@ -132,12 +167,38 @@ bool checkIHDR(PNG png) {
         std::exit(1);
     }
     inflateEnd(&stream);
+    std::printf("we received %zu bytes of image data\n", image_data.size);
     return image_data;
 }
 
-void getDimensions(PNG png, std::uint32_t *width, std::uint32_t *height) {
+void getDimensions(const PNG& png, std::uint32_t *width, std::uint32_t *height, std::uint8_t *bit_depth) {
     Chunk* firstChunk = png.data->chunks;
     IHDR* header = reinterpret_cast<IHDR*>(firstChunk->chunkdata_and_crc);
     *width = __builtin_bswap32(header->width);
     *height = __builtin_bswap32(header->height);
+    *bit_depth = header->bit_depth;
+    assert(*bit_depth == 8);
+    assert(header->interlace_method == 0); // no interlace
+    std::printf("color type: ");
+    const char* name;
+    switch(header->color_type) {
+        case 0:
+            name = "grayscale";
+            break;
+        case 2:
+            name = "true color";
+            break;
+        case 3:
+            name = "indexed color";
+            break;
+        case 4:
+            name = "grayscale with alpha";
+            break;
+        case 6:
+            name = "true color with alpha";
+            break;
+        default:
+            name = "unkown";
+    }
+    printf("%s\n", name);
 }

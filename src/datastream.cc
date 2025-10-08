@@ -1,7 +1,9 @@
 #include "chunk.hpp"
 #include "file.hpp"
 #include "png.hpp"
+
 #include <cstring>
+#include <cstdio>
 
 const byte_t PNG_MAGIC_BYTES[] {
     0x89, 0x50, 0x4E, 0x47,
@@ -34,11 +36,17 @@ const PNG loadPNG(const char* filename) {
     const auto file = mapFile(filename);
     PNG png = findHeader(file);
     if (png.totalSize) {
-        return png;
     } else {
         unmapFile(file);
         return {0, NULL};
     }
+    std::uint8_t color_type = getColorType(png);
+    if (color_type == 3) { // we could optionally include color types 2 and 6 here
+        loadPLTE(png);
+    } else {
+        std::printf("no color palette available\n");
+    }
+    return png;
 }
 
 void unloadPNG(PNG png) {

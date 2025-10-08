@@ -1,7 +1,6 @@
 #pragma once
 #include <cstdlib>
 #include <cstdint>
-#include <type_traits>
 
 typedef std::uint8_t byte_t;
 typedef byte_t data_t[];
@@ -35,23 +34,16 @@ struct PNG_datastream{
 struct PNG{
     std::size_t totalSize;
     PNG_datastream* data;
-};
-
-template<typename T, std::uint32_t width, std::uint32_t height, std::uint16_t sample_depth>
-requires requires() {
-    std::is_arithmetic_v<T>;
-    sample_depth >= 1;
-}
-struct Image{
-    static constexpr std::uint32_t w = width, h = height;
-    struct pixel{
-        struct channel{
-            T samples[sample_depth];
-        } r, g, b, a;
-    } data[width*height];
-    void ptoi(std::uint32_t x, std::uint32_t y, std::size_t* index);
-    void itop(std::size_t index, std::uint32_t* x, std::uint32_t* y);
+    struct PLTE{
+        size_t num;
+        struct Color{
+            uint8_t r, g, b;
+        } *colors;
+    } palette;
 };
 
 const PNG loadPNG(const char* filename);
+uint32_t* loadPixels(const PNG& png);
+
+void unloadPixels(uint32_t* pixels);
 void unloadPNG(PNG png);
