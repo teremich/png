@@ -327,11 +327,6 @@ void createIDAT(PNG& png, std::uint32_t* pixel_data) {
     std::uint32_t width, height;
     std::uint8_t bit_depth;
     getDimensions(png, &width, &height, &bit_depth);
-    png.totalSize += Chunk::minSize;
-
-    Chunk idat;
-    idat.chunk_type = Chunk::IDAT;
-
     // interlace method 0 => no interlacing
     const auto filtered = filterScanlines(pixel_data, width, height);
     const allocation_t IDAT = compressIDAT(filtered);
@@ -340,16 +335,16 @@ void createIDAT(PNG& png, std::uint32_t* pixel_data) {
     std::size_t oldSize = png.totalSize;
     png.totalSize += Chunk::minSize;
     png.totalSize += IDAT.size;
-    idat.length = __builtin_bswap32(static_cast<std::uint32_t>(IDAT.size));
     png.data = static_cast<PNG_datastream*>(realloc(png.data, png.totalSize));
     void* start_of_IDAT_chunk = &reinterpret_cast<byte_t*>(png.data)[oldSize];
+    Chunk* idat = static_cast<Chunk*>(start_of_IDAT_chunk);
+    idat->length = __builtin_bswap32(static_cast<std::uint32_t>(IDAT.size));
+    idat->chunk_type = Chunk::IDAT;
     std::size_t data_to_crc_size = IDAT.size + sizeof(Chunk::chunk_type);
-    byte_t* data_to_crc = &static_cast<byte_t*>(
-        start_of_IDAT_chunk
-    )[offsetof(Chunk, chunk_type)];
-    byte_t* CRC = &static_cast<byte_t*>(
-        start_of_IDAT_chunk
-    )[Chunk::minSize + IDAT.size - sizeof(crc_t)];
+    byte_t* data_to_crc = reinterpret_cast<byte_t*>(
+        &idat->chunkdata_and_crc
+    );
+    byte_t* CRC = &data_to_crc[IDAT.size];
     *reinterpret_cast<crc_t*>(CRC) = crc(data_to_crc, data_to_crc_size);
     std::memcpy(
         static_cast<Chunk*>(start_of_IDAT_chunk)->chunkdata_and_crc,

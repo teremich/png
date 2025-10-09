@@ -58,6 +58,7 @@ void unloadPNG(PNG png) {
 PNG createPNG(std::uint32_t* pixels, std::uint32_t width, std::uint32_t height) {
     PNG png{};
     createIHDR(png, width, height);
+    std::memcpy(png.data->signature, PNG_MAGIC_BYTES, sizeof(PNG_MAGIC_BYTES));
     createIDAT(png, pixels);
     createIEND(png);
     return png;
