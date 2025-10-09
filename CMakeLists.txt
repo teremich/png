@@ -15,4 +15,9 @@ add_library(mypng
 )
 target_link_libraries(mypng PRIVATE z)
 add_executable(test src/test.cc)
-target_link_libraries(test PRIVATE mypng)
+target_include_directories(test PRIVATE
+    include/
+    src/
+)
+target_link_directories(test PRIVATE lib)
+target_link_libraries(test PRIVATE mypng bmp)

@@ -9,5 +9,9 @@ struct FilteredScanline{
     byte_t line[]; // indices or sample values
 };
 
+struct pixel_rgba{
+    uint8_t r, g, b, a;
+};
+
 byte_t* unfilterScanlines(PNG png, std::uint32_t *width, std::uint32_t *height, std::uint8_t *bit_depth);
-PNG::PLTE::Color indexToPixel(const PNG& png, std::uint8_t index);
+pixel_rgba indexToPixel(const PNG& png, std::uint8_t index);

@@ -35,10 +35,12 @@ struct PNG{
     std::size_t totalSize;
     PNG_datastream* data;
     struct PLTE{
-        size_t num;
+        size_t numColors;
         struct Color{
             uint8_t r, g, b;
         } *colors;
+        size_t numTransparencies;
+        uint8_t* transparencies;
     } palette;
 };
 

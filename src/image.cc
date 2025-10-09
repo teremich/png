@@ -7,7 +7,7 @@
 #include <cstring>
 
 static uint8_t paethPredictor(std::uint8_t A, std::uint8_t B, std::uint8_t C) {
-    uint8_t P = A + B - C;
+    int8_t P = A + B - C;
     uint8_t pa = abs(P - A);
     uint8_t pb = abs(P - B);
     uint8_t pc = abs(P - C);
@@ -78,6 +78,8 @@ byte_t* unfilterScanlines(PNG png, std::uint32_t *width, std::uint32_t *height, 
                     *X = *Filt + (*A + *B) / 2;
                     break;
                 case 4: // Paeth
+                    std::printf("What is wrong with you\n");
+                    std::exit(1);
                     *X = paethPredictor(*A, *B, *C);
                     break;
                 default:
@@ -91,8 +93,14 @@ byte_t* unfilterScanlines(PNG png, std::uint32_t *width, std::uint32_t *height, 
     return result;
 }
 
-PNG::PLTE::Color indexToPixel(const PNG& png, std::uint8_t index) {
-    return png.palette.colors[index];
+pixel_rgba indexToPixel(const PNG& png, std::uint8_t index) {
+    return {
+        .r = png.palette.colors[index].r,
+        .g = png.palette.colors[index].g,
+        .b = png.palette.colors[index].b,
+        .a = (index < png.palette.numTransparencies) ?
+            png.palette.transparencies[index] : static_cast<uint8_t>(0xFF),
+    };
 }
 
 static uint32_t* loadIndexed(
@@ -103,11 +111,11 @@ static uint32_t* loadIndexed(
     uint32_t *result = static_cast<uint32_t*>(malloc(4*width*height*bit_depth/8));
     for (size_t index = 0; index < width*height*bit_depth/8; index++) {
         const auto p = indexToPixel(png, data[index]);
-        *result =
-            (p.r) << (8*3) ||
-            (p.g) << (8*2) ||
-            (p.b) << (8*1) ||
-            (255) << (8*0);
+        result[index] =
+            ((p.r) << (8*3)) |
+            ((p.g) << (8*2)) |
+            ((p.b) << (8*1)) |
+            ((p.a) << (8*0));
     }
     free(data);
     return result;
@@ -120,11 +128,11 @@ uint32_t* loadPixels(const PNG& png) {
         png, &width, &height, &bit_depth
     );
     switch(getColorType(png)) {
-        case 3:
+        case 3: // indexed color
             return loadIndexed(data, png, width, height, bit_depth);
-        case 6:
+        case 6: // true color with alpha
             return reinterpret_cast<uint32_t*>(data);
-        default:
+        default: // too lazy to implement the rest
             return reinterpret_cast<uint32_t*>(data);
     }
 }

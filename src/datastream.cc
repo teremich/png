@@ -43,6 +43,7 @@ const PNG loadPNG(const char* filename) {
     std::uint8_t color_type = getColorType(png);
     if (color_type == 3) { // we could optionally include color types 2 and 6 here
         loadPLTE(png);
+        loadtRNS(png);
     } else {
         std::printf("no color palette available\n");
     }

@@ -55,23 +55,67 @@ void loadPLTE(PNG& png) {
         Chunk* chunk;
         byte_t* address;
     } current = {.address = reinterpret_cast<byte_t*>(png.data->chunks)};
-    byte_t* end = current.address + png.totalSize;
+    byte_t* const end = current.address + png.totalSize;
     for (
         ;
         current.address + Chunk::minSize + __builtin_bswap32(current.chunk->length) < end;
         current.address += Chunk::minSize + __builtin_bswap32(current.chunk->length)
     ) {
         if (current.chunk->chunk_type == Chunk::PLTE) {
-            break;
+            goto found;
         }
         if (current.chunk->chunk_type == Chunk::IEND) {
             return;
         }
     }
-    // TODO: what if there is no IEND chunk?
+    return;
+found:
     png.palette.colors = reinterpret_cast<PNG::PLTE::Color*>(current.chunk->chunkdata_and_crc);
-    png.palette.num = current.chunk->length/sizeof(PNG::PLTE::Color);
-    std::printf("color palette loaded\n");
+    png.palette.numColors = __builtin_bswap32(current.chunk->length)/sizeof(PNG::PLTE::Color);
+    std::uint8_t bit_depth;
+    getDimensions(png, 0, 0, &bit_depth);
+    if (png.palette.numColors > 1<<bit_depth) {
+        std::printf(
+            "Error: the number of colors in the palette (%zu) exceeded the bit_depth\n",
+            png.palette.numColors
+        );
+        png.palette.numColors = 1<<bit_depth;
+    }
+    std::printf("color palette of size %zu loaded\n", png.palette.numColors);
+}
+
+void loadtRNS(PNG& png) {
+    union {
+        Chunk* chunk;
+        byte_t* address;
+    } current = {.address = reinterpret_cast<byte_t*>(png.data->chunks)};
+    byte_t* const end = current.address + png.totalSize;
+    for (
+        ;
+        current.address + Chunk::minSize + __builtin_bswap32(current.chunk->length) < end;
+        current.address += Chunk::minSize + __builtin_bswap32(current.chunk->length)
+    ) {
+        if (current.chunk->chunk_type == Chunk::tRNS) {
+            goto found;
+        }
+        if (current.chunk->chunk_type == Chunk::IEND) {
+            return;
+        }
+    }
+    return;
+found:
+    png.palette.transparencies = reinterpret_cast<uint8_t*>(current.chunk->chunkdata_and_crc);
+    png.palette.numTransparencies = __builtin_bswap32(current.chunk->length);
+    if (png.palette.numTransparencies > png.palette.numColors) {
+        std::printf(
+            "Error: the number of transparency values "
+            "in the palette (%zu) exceeded the number of colors (%zu)\n",
+            png.palette.numTransparencies,
+            png.palette.numColors
+        );
+        png.palette.numTransparencies = png.palette.numColors;
+    }
+    std::printf("transparency palette of size %zu loaded\n", png.palette.numTransparencies);
 }
 
 [[nodiscard]] allocation_t decompressIDAT(const PNG& png) {
@@ -101,6 +145,9 @@ void loadPLTE(PNG& png) {
             std::fprintf(stderr, "%x %x %x %x\n", ((char*)&current.chunk->chunk_type)[0], ((char*)&current.chunk->chunk_type)[1], ((char*)&current.chunk->chunk_type)[2], ((char*)&current.chunk->chunk_type)[3]);
             std::fprintf(stderr, "couldn't process critical Chunk: %.4s\n", (char*)&current.chunk->chunk_type);
             std::exit(1);
+        }
+        if (current.chunk->chunk_type == Chunk::tRNS) {
+            std::printf("tRNS chunk has length: %u\n", __builtin_bswap32(current.chunk->length));
         }
     }
     allocation_t image_data{};
@@ -174,31 +221,35 @@ void loadPLTE(PNG& png) {
 void getDimensions(const PNG& png, std::uint32_t *width, std::uint32_t *height, std::uint8_t *bit_depth) {
     Chunk* firstChunk = png.data->chunks;
     IHDR* header = reinterpret_cast<IHDR*>(firstChunk->chunkdata_and_crc);
-    *width = __builtin_bswap32(header->width);
-    *height = __builtin_bswap32(header->height);
-    *bit_depth = header->bit_depth;
+    if (width) {
+        *width = __builtin_bswap32(header->width);
+    }
+    if (height) {
+        *height = __builtin_bswap32(header->height);
+    }
+    if (bit_depth) {
+        *bit_depth = header->bit_depth;
+    }
     assert(*bit_depth == 8);
     assert(header->interlace_method == 0); // no interlace
-    std::printf("color type: ");
-    const char* name;
-    switch(header->color_type) {
-        case 0:
-            name = "grayscale";
-            break;
-        case 2:
-            name = "true color";
-            break;
-        case 3:
-            name = "indexed color";
-            break;
-        case 4:
-            name = "grayscale with alpha";
-            break;
-        case 6:
-            name = "true color with alpha";
-            break;
-        default:
-            name = "unkown";
-    }
-    printf("%s\n", name);
+    // const char* name;
+    // switch(header->color_type) {
+    //     case 0:
+    //         name = "grayscale";
+    //         break;
+    //     case 2:
+    //         name = "true color";
+    //         break;
+    //     case 3:
+    //         name = "indexed color";
+    //         break;
+    //     case 4:
+    //         name = "grayscale with alpha";
+    //         break;
+    //     case 6:
+    //         name = "true color with alpha";
+    //         break;
+    //     default:
+    //         name = "unkown";
+    // }
 }
