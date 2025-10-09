@@ -16,7 +16,7 @@ struct [[gnu::packed]] Chunk{
         sRGB = 0x42'47'52'73,
         tRNS = 0x53'4e'52'74,
     } chunk_type;
-    data_t chunkdata_and_crc;
+    byte_t chunkdata_and_crc[];
     static const std::size_t minSize;
 };
 

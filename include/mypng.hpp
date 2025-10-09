@@ -3,7 +3,6 @@
 #include <cstdint>
 
 typedef std::uint8_t byte_t;
-typedef byte_t data_t[];
 typedef std::uint32_t crc_t;
 
 struct PNG_datastream;
