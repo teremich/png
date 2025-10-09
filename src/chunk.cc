@@ -67,8 +67,8 @@ void loadPLTE(PNG& png) {
     }
     return;
 found:
-    png.palette.colors = reinterpret_cast<PNG::PLTE::Color*>(current.chunk->chunkdata_and_crc);
-    png.palette.numColors = __builtin_bswap32(current.chunk->length)/sizeof(PNG::PLTE::Color);
+    png.palette.colors = reinterpret_cast<PNG::ColorPalette::Color*>(current.chunk->chunkdata_and_crc);
+    png.palette.numColors = __builtin_bswap32(current.chunk->length)/sizeof(PNG::ColorPalette::Color);
     std::uint8_t bit_depth;
     getDimensions(png, 0, 0, &bit_depth);
     if (png.palette.numColors > 1<<bit_depth) {

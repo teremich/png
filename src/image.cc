@@ -55,7 +55,7 @@ byte_t* unfilterScanlines(PNG png, std::uint32_t *width, std::uint32_t *height, 
             perPixelSize = 4**bit_depth / 8;
             break;
         default: 
-            perPixelSize = sizeof(PNG::PLTE::Color)+1;
+            perPixelSize = sizeof(PNG::ColorPalette::Color)+1;
     };
     byte_t* result = static_cast<byte_t*>(
         std::malloc(*width**height**bit_depth*perPixelSize/8)

@@ -19,6 +19,10 @@ add_library(mypng
     src/crc.cc
 )
 target_link_libraries(mypng PRIVATE z)
+target_include_directories(mypng PRIVATE
+    include/
+    src/
+)
 add_executable(test src/test.cc)
 target_include_directories(test PRIVATE
     include/
