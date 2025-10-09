@@ -9,3 +9,6 @@ void loadtRNS(PNG& png);
 uint8_t getColorType(const PNG& png);
 void getDimensions(const PNG& png, std::uint32_t *width, std::uint32_t *height, std::uint8_t *bit_depth);
 [[nodiscard]] allocation_t decompressIDAT(const PNG& png);
+void createIHDR(PNG& png, std::uint32_t width, std::uint32_t height);
+void createIDAT(PNG& png, std::uint32_t* pixel_data);
+void createIEND(PNG& png);

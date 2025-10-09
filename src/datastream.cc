@@ -3,6 +3,7 @@
 #include "png.hpp"
 
 #include <cstring>
+#include <cassert>
 #include <cstdio>
 
 const byte_t PNG_MAGIC_BYTES[] {
@@ -53,4 +54,16 @@ const PNG loadPNG(const char* filename) {
 void unloadPNG(PNG png) {
     const allocation_t file = {png.data, png.totalSize};
     unmapFile(file);
+}
+
+PNG createPNG(std::uint32_t* pixels, std::uint32_t width, std::uint32_t height) {
+    PNG png{};
+    createIHDR(png, width, height);
+    createIDAT(png, pixels);
+    createIEND(png);
+    return png;
+}
+
+void writePNG(const PNG& png, const char* filename) {
+    assert(createFile(filename, reinterpret_cast<byte_t*>(png.data), png.totalSize) == png.totalSize);
 }

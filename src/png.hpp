@@ -45,7 +45,8 @@ struct PNG{
 };
 
 const PNG loadPNG(const char* filename);
-uint32_t* loadPixels(const PNG& png);
-
-void unloadPixels(uint32_t* pixels);
+std::uint32_t* loadPixels(const PNG& png);
+PNG createPNG(std::uint32_t* pixels, std::uint32_t width, std::uint32_t height);
+void writePNG(const PNG& png, const char* filename);
+void unloadPixels(std::uint32_t* pixels);
 void unloadPNG(PNG png);

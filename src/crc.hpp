@@ -1,3 +1,4 @@
 #pragma once
+#include <cstdint>
 
-unsigned long crc(unsigned char *buf, int len);
+uint32_t crc(unsigned char *buf, int len);

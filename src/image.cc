@@ -14,6 +14,25 @@ static uint8_t paethPredictor(std::uint8_t A, std::uint8_t B, std::uint8_t C) {
     return (pa <= pb && pa <= pc) ? A : (pb <= pc) ? B : C;
 }
 
+static allocation_t filter_method_0(
+    std::uint32_t *pixel_data, std::uint32_t width, std::uint32_t height
+) {
+    allocation_t result;
+    const std::size_t lineSize = 4*width+1;
+    result.size = height*lineSize;
+    byte_t* data = static_cast<byte_t*>(std::calloc(height, lineSize));
+    result.ptr = data;
+    for (std::uint32_t y = 0; y < height; y++) {
+        data[y*lineSize] = 0; // filter type 0 on every line
+        std::memcpy(&data[y*lineSize+1], &pixel_data[y*width], width*4);
+    }
+    return result;
+}
+
+allocation_t filterScanlines(std::uint32_t *pixel_data, std::uint32_t width, std::uint32_t height) {
+    return filter_method_0(pixel_data, width, height);
+}
+
 byte_t* unfilterScanlines(PNG png, std::uint32_t *width, std::uint32_t *height, std::uint8_t *bit_depth) {
     getDimensions(png, width, height, bit_depth);
     assert(*bit_depth && !(*bit_depth & 7));

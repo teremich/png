@@ -1,6 +1,8 @@
 #include "chunk.hpp"
 #include "file.hpp"
 #include "png.hpp"
+#include "crc.hpp"
+#include "image.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -10,6 +12,7 @@
 #include <cstdio>
 #include <algorithm>
 
+#include <zconf.h>
 #include <zlib.h>
 
 struct [[gnu::packed]] IHDR {
@@ -151,7 +154,6 @@ found:
         }
     }
     allocation_t image_data{};
-    static const char* version = zlibVersion();
     const size_t zOutputSize = 1<<14;
     byte_t *const zOutput = static_cast<byte_t*>(std::malloc(zOutputSize));
     // The fields
@@ -218,6 +220,50 @@ found:
     return image_data;
 }
 
+[[nodiscard]] static allocation_t compressIDAT(allocation_t data) {
+    const size_t zOutputSize = 1<<14;
+    allocation_t compressed_data{
+        std::malloc(zOutputSize),
+        zOutputSize
+    };
+    // The fields
+    // next_in, avail_in, zalloc, zfree and opaque
+    // must be initialized before by the caller.
+    z_stream stream{
+        .next_in = static_cast<Bytef*>(data.ptr),    // no data ready yet
+        .avail_in = static_cast<uint32_t>(data.size),      // 
+        .zalloc = nullptr,  // use default allocation function
+        .zfree = nullptr,   // use default free function
+        .opaque = nullptr,  // optional data for this stream
+    };
+    stream.next_out = static_cast<Bytef*>(compressed_data.ptr);
+    stream.avail_out = zOutputSize;
+    assert(
+        deflateInit(
+            &stream, Z_DEFAULT_COMPRESSION
+        ) == Z_OK
+    );
+    while (true) {
+        // const std::uint32_t before = stream.avail_out;
+        int r = deflate(&stream, Z_FINISH);
+        if (r == Z_STREAM_END) {
+            compressed_data.size -= stream.avail_out;
+            break;
+        }
+        assert(r == Z_OK);
+        // const std::size_t written = before - stream.avail_out;
+        stream.avail_out = compressed_data.size / 2;
+        compressed_data.size += stream.avail_out;
+        compressed_data.ptr = std::realloc(compressed_data.ptr, compressed_data.size);
+        stream.next_out = &static_cast<byte_t*>(
+            compressed_data.ptr
+        )[compressed_data.size - stream.avail_out];
+    }
+    deflateEnd(&stream);
+    std::printf("we compressed %zu bytes of image data into %zu bytes\n", data.size, compressed_data.size);
+    return compressed_data;
+}
+
 void getDimensions(const PNG& png, std::uint32_t *width, std::uint32_t *height, std::uint8_t *bit_depth) {
     Chunk* firstChunk = png.data->chunks;
     IHDR* header = reinterpret_cast<IHDR*>(firstChunk->chunkdata_and_crc);
@@ -252,4 +298,73 @@ void getDimensions(const PNG& png, std::uint32_t *width, std::uint32_t *height, 
     //     default:
     //         name = "unkown";
     // }
+}
+
+void createIHDR(PNG& png, std::uint32_t width, std::uint32_t height) {
+    png.totalSize = sizeof(PNG_datastream) + sizeof(IHDR);
+    png.data = static_cast<PNG_datastream*>(
+        std::malloc(png.totalSize)
+    );
+    png.data->chunks[0].length = __builtin_bswap32(sizeof(IHDR) - sizeof(crc_t));
+    png.data->chunks[0].chunk_type = Chunk::IHDR;
+    IHDR* header = reinterpret_cast<IHDR*>(png.data->chunks[0].chunkdata_and_crc);
+    *header = {
+        .width = width,
+        .height = height,
+        .bit_depth = 8,
+        .color_type = 6,
+        .compression_method = 0,
+        .filter_method = 0,
+        .interlace_method = 0
+    };
+    header->CRC = crc(
+        reinterpret_cast<Bytef*>(&png.data->chunks[0].chunk_type),
+        sizeof(Chunk::chunk_type) + sizeof(IHDR) - sizeof(crc_t)
+    );
+}
+
+void createIDAT(PNG& png, std::uint32_t* pixel_data) {
+    std::uint32_t width, height;
+    std::uint8_t bit_depth;
+    getDimensions(png, &width, &height, &bit_depth);
+    png.totalSize += Chunk::minSize;
+
+    Chunk idat;
+    idat.chunk_type = Chunk::IDAT;
+
+    // interlace method 0 => no interlacing
+    const auto filtered = filterScanlines(pixel_data, width, height);
+    const allocation_t IDAT = compressIDAT(filtered);
+    std::free(filtered.ptr);
+    
+    std::size_t oldSize = png.totalSize;
+    png.totalSize += IDAT.size;
+    idat.length = __builtin_bswap32(static_cast<std::uint32_t>(IDAT.size));
+    png.data = static_cast<PNG_datastream*>(realloc(png.data, png.totalSize));
+    void* start_of_IDAT_chunk = &reinterpret_cast<byte_t*>(png.data)[oldSize];
+    std::size_t data_to_crc_size = IDAT.size + sizeof(Chunk::chunk_type);
+    byte_t* data_to_crc = &static_cast<byte_t*>(
+        start_of_IDAT_chunk
+    )[offsetof(Chunk, chunk_type)];
+    crc_t* CRC = &static_cast<crc_t*>(
+        start_of_IDAT_chunk
+    )[Chunk::minSize + IDAT.size - sizeof(crc_t)];
+    *CRC = crc(data_to_crc, data_to_crc_size);
+    std::memcpy(
+        static_cast<Chunk*>(start_of_IDAT_chunk)->chunkdata_and_crc,
+        IDAT.ptr, IDAT.size
+    );
+    std::free(IDAT.ptr);
+}
+
+void createIEND(PNG& png) {
+    std::size_t begin_of_last_chunk = png.totalSize;
+    png.totalSize += Chunk::minSize;
+    png.data = static_cast<PNG_datastream*>(realloc(png.data, png.totalSize));
+    byte_t* last_chunk = &reinterpret_cast<byte_t*>(png.data)[begin_of_last_chunk];
+    Chunk* IEND = reinterpret_cast<Chunk*>(last_chunk);
+    IEND->chunk_type = Chunk::IEND;
+    IEND->length = 0;
+    crc_t* CRC = reinterpret_cast<crc_t*>(&IEND->chunkdata_and_crc);
+    *CRC = crc(reinterpret_cast<byte_t*>(&IEND->chunk_type), sizeof(Chunk::chunk_type));
 }

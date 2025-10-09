@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdlib>
+#include <cstdint>
 #include <sys/mman.h>
 #include <sys/file.h>
 
@@ -15,6 +16,6 @@ typedef struct Allocation{
 } allocation_t;
 
 [[nodiscard]] allocation_t mapFile(const char* filePath);
-
+std::size_t createFile(const char* filename, std::uint8_t *content, std::size_t size);
 void unmapFile(allocation_t mappedFile);
 
