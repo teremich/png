@@ -1,3 +1,4 @@
+#include "chunk.hpp"
 #include "png.hpp"
 
 #include <bmp.h>
@@ -7,10 +8,11 @@
 #include <cstdio>
 #include <cstdlib>
 
-static void RGBA2ARGB(std::uint32_t* pixels, std::size_t num) {
+static void ABGR2ARGB(std::uint32_t* pixels, std::size_t num) {
     for (std::size_t i = 0; i < num; i++) {
-        const uint8_t alpha = pixels[i] & 0xFF;
-        pixels[i] = (alpha << (3*8)) | (pixels[i] >> 8);
+        uint8_t r = pixels[i];
+        uint8_t b = pixels[i] >> (2*8);
+        pixels[i] = pixels[i] & 0xFF00FF00 | (r << (2*8)) | b;
     }
 }
 
@@ -37,14 +39,41 @@ static std::uint32_t* PNG_PALETTE2ARGB(PNG& png) {
     return out;
 }
 
-static uint32_t image_rgba[]{
-    0xFF0000FF, 0xFF000000,
-    0x00FF00FF, 0x00FF0000
+static uint32_t image_abgr[]{
+    0xFF0000FF, 0x000000FF,
+    0xFF00FF00, 0x0000FF00
 };
 
 int main() {
-    PNG png = createPNG(image_rgba, 2, 2);
+    // =========== W PNG ============
+    PNG png = createPNG(image_abgr, 2, 2);
     writePNG(png, "image.png");
     free(png.data);
+    // =========== W PNG ============
+    // =========== IMAGE ============
+    png = loadPNG("image.png");
+    uint32_t width, height;
+    getDimensions(png, &width, &height, nullptr);
+    uint32_t* pixels = loadPixels(png);
+    ABGR2ARGB(pixels, width*height);
+    BMP bmp{
+        width, height, {.packed=pixels}
+    };
+    writeBMP(bmp, "image.bmp");
+    unloadPixels(pixels);
+    unloadPNG(png);
+    // =========== IMAGE ============
+    // =========== DARTS ============
+    png = loadPNG("dartboard.png");
+    getDimensions(png, &width, &height, nullptr);
+    pixels = loadPixels(png);
+    ABGR2ARGB(pixels, width*height);
+    bmp = {
+        width, height, {.packed=pixels}
+    };
+    writeBMP(bmp, "dartboard.bmp");
+    unloadPixels(pixels);
+    unloadPNG(png);
+    // =========== DARTS ============
     return 0;
 }

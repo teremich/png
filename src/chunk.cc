@@ -1,18 +1,12 @@
 #include "chunk.hpp"
-#include "file.hpp"
-#include "png.hpp"
 #include "crc.hpp"
 #include "image.hpp"
 
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
 #include <cassert>
 #include <cstring>
 #include <cstdio>
 #include <algorithm>
 
-#include <zconf.h>
 #include <zlib.h>
 
 struct [[gnu::packed]] IHDR {
@@ -180,7 +174,11 @@ found:
         stream.next_out = zOutput;
         stream.avail_out = zOutputSize;
 
-        assert(inflate(&stream, Z_SYNC_FLUSH) == Z_OK);
+        int r = inflate(&stream, Z_SYNC_FLUSH);
+        if(r != Z_OK && r != Z_STREAM_END){
+            std::printf("inflate returned: %d\n", r);
+            std::exit(1);
+        }
         const size_t written = zOutputSize - stream.avail_out;
         image_data.size += written;
 
@@ -276,7 +274,7 @@ void getDimensions(const PNG& png, std::uint32_t *width, std::uint32_t *height, 
     if (bit_depth) {
         *bit_depth = header->bit_depth;
     }
-    assert(*bit_depth == 8);
+    assert(header->bit_depth == 8);
     assert(header->interlace_method == 0); // no interlace
     // const char* name;
     // switch(header->color_type) {
@@ -317,10 +315,10 @@ void createIHDR(PNG& png, std::uint32_t width, std::uint32_t height) {
         .filter_method = 0,
         .interlace_method = 0
     };
-    header->CRC = crc(
-        reinterpret_cast<Bytef*>(&png.data->chunks[0].chunk_type),
+    header->CRC = __builtin_bswap32(crc(
+        reinterpret_cast<uint8_t*>(&png.data->chunks[0].chunk_type),
         sizeof(Chunk::chunk_type) + sizeof(IHDR) - sizeof(crc_t)
-    );
+    ));
 }
 
 void createIDAT(PNG& png, std::uint32_t* pixel_data) {
@@ -330,6 +328,7 @@ void createIDAT(PNG& png, std::uint32_t* pixel_data) {
     // interlace method 0 => no interlacing
     const auto filtered = filterScanlines(pixel_data, width, height);
     const allocation_t IDAT = compressIDAT(filtered);
+    std::printf("created %zu bytes of compressed image data\n", IDAT.size);
     std::free(filtered.ptr);
     
     std::size_t oldSize = png.totalSize;
@@ -345,7 +344,9 @@ void createIDAT(PNG& png, std::uint32_t* pixel_data) {
         &idat->chunkdata_and_crc
     );
     byte_t* CRC = &data_to_crc[IDAT.size];
-    *reinterpret_cast<crc_t*>(CRC) = crc(data_to_crc, data_to_crc_size);
+    *reinterpret_cast<crc_t*>(CRC) = __builtin_bswap32(
+        crc(data_to_crc, data_to_crc_size)
+    );
     std::memcpy(
         static_cast<Chunk*>(start_of_IDAT_chunk)->chunkdata_and_crc,
         IDAT.ptr, IDAT.size
@@ -362,5 +363,8 @@ void createIEND(PNG& png) {
     IEND->chunk_type = Chunk::IEND;
     IEND->length = 0;
     crc_t* CRC = reinterpret_cast<crc_t*>(&IEND->chunkdata_and_crc);
-    *CRC = crc(reinterpret_cast<byte_t*>(&IEND->chunk_type), sizeof(Chunk::chunk_type));
+    *CRC = __builtin_bswap32(crc(
+        reinterpret_cast<byte_t*>(&IEND->chunk_type),
+        sizeof(Chunk::chunk_type)
+    ));
 }

@@ -131,10 +131,10 @@ static uint32_t* loadIndexed(
     for (size_t index = 0; index < width*height*bit_depth/8; index++) {
         const auto p = indexToPixel(png, data[index]);
         result[index] =
-            ((p.r) << (8*3)) |
-            ((p.g) << (8*2)) |
-            ((p.b) << (8*1)) |
-            ((p.a) << (8*0));
+            ((p.a) << (8*3)) |
+            ((p.b) << (8*2)) |
+            ((p.g) << (8*1)) |
+            ((p.r) << (8*0));
     }
     free(data);
     return result;
