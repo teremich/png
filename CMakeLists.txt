@@ -12,6 +12,7 @@ add_library(mypng
     src/datastream.cc
     src/file.cc
     src/image.cc
+    src/crc.cc
 )
 target_link_libraries(mypng PRIVATE z)
 add_executable(test src/test.cc)

@@ -1,5 +1,6 @@
 #include "file.hpp"
 #include <filesystem>
+#include <cassert>
 
 [[nodiscard]] allocation_t mapFile(const char* filePath) {
     int file = open(filePath, O_RDONLY);
@@ -7,11 +8,10 @@
     return {mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE | MAP_FILE, file, 0), fileSize};
 }
 
-std::size_t createFile(const char* filename, std::uint8_t *content, std::size_t size) {
+void createFile(const char* filename, std::uint8_t *content, std::size_t size) {
     FILE* const file = fopen(filename, "wb+");
-    const std::size_t written = fwrite(content, size, 1, file);
+    assert(fwrite(content, size, 1, file) == 1);
     fclose(file);
-    return written;
 }
 
 void unmapFile(allocation_t mappedFile) {

@@ -301,7 +301,7 @@ void getDimensions(const PNG& png, std::uint32_t *width, std::uint32_t *height, 
 }
 
 void createIHDR(PNG& png, std::uint32_t width, std::uint32_t height) {
-    png.totalSize = sizeof(PNG_datastream) + sizeof(IHDR);
+    png.totalSize = sizeof(PNG_datastream) + sizeof(Chunk) + sizeof(IHDR);
     png.data = static_cast<PNG_datastream*>(
         std::malloc(png.totalSize)
     );
@@ -309,8 +309,8 @@ void createIHDR(PNG& png, std::uint32_t width, std::uint32_t height) {
     png.data->chunks[0].chunk_type = Chunk::IHDR;
     IHDR* header = reinterpret_cast<IHDR*>(png.data->chunks[0].chunkdata_and_crc);
     *header = {
-        .width = width,
-        .height = height,
+        .width = __builtin_bswap32(width),
+        .height = __builtin_bswap32(height),
         .bit_depth = 8,
         .color_type = 6,
         .compression_method = 0,
@@ -338,6 +338,7 @@ void createIDAT(PNG& png, std::uint32_t* pixel_data) {
     std::free(filtered.ptr);
     
     std::size_t oldSize = png.totalSize;
+    png.totalSize += Chunk::minSize;
     png.totalSize += IDAT.size;
     idat.length = __builtin_bswap32(static_cast<std::uint32_t>(IDAT.size));
     png.data = static_cast<PNG_datastream*>(realloc(png.data, png.totalSize));
@@ -346,10 +347,10 @@ void createIDAT(PNG& png, std::uint32_t* pixel_data) {
     byte_t* data_to_crc = &static_cast<byte_t*>(
         start_of_IDAT_chunk
     )[offsetof(Chunk, chunk_type)];
-    crc_t* CRC = &static_cast<crc_t*>(
+    byte_t* CRC = &static_cast<byte_t*>(
         start_of_IDAT_chunk
     )[Chunk::minSize + IDAT.size - sizeof(crc_t)];
-    *CRC = crc(data_to_crc, data_to_crc_size);
+    *reinterpret_cast<crc_t*>(CRC) = crc(data_to_crc, data_to_crc_size);
     std::memcpy(
         static_cast<Chunk*>(start_of_IDAT_chunk)->chunkdata_and_crc,
         IDAT.ptr, IDAT.size

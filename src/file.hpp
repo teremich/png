@@ -16,6 +16,6 @@ typedef struct Allocation{
 } allocation_t;
 
 [[nodiscard]] allocation_t mapFile(const char* filePath);
-std::size_t createFile(const char* filename, std::uint8_t *content, std::size_t size);
+void createFile(const char* filename, std::uint8_t *content, std::size_t size);
 void unmapFile(allocation_t mappedFile);
 

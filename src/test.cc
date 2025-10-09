@@ -45,5 +45,6 @@ static uint32_t image_rgba[]{
 int main() {
     PNG png = createPNG(image_rgba, 2, 2);
     writePNG(png, "image.png");
+    free(png.data);
     return 0;
 }
