@@ -1,7 +1,7 @@
 #pragma once
 
+#include <mypng.hpp>
 #include "file.hpp"
-#include "png.hpp"
 
 bool checkIHDR(const PNG& png);
 void loadPLTE(PNG& png);
