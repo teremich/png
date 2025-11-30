@@ -1,6 +1,6 @@
 #include "chunk.hpp"
-#include "png.hpp"
-
+#include <mypng.hpp>
+#define BMP_IMPLEMENTATION
 #include <bmp.h>
 
 #include <cassert>

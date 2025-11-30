@@ -1,5 +1,8 @@
 #include "crc.hpp"
 
+// Stolen from
+// https://www.w3.org/TR/png-3/#samplecrc
+
 /* Table of CRCs of all 8-bit messages. */
 static uint32_t crc_table[256];
 
