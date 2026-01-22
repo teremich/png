@@ -8,8 +8,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
-add_compile_options(-g -fsanitize=address)
-add_link_options(-fsanitize=address -flto)
+add_compile_options(-g -fsanitize=address,undefined)
+add_link_options(-fsanitize=address,undefined -flto)
 
 add_library(mypng
     src/chunk.cc
