@@ -8,7 +8,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-static void ABGR2ARGB(std::uint32_t* pixels, std::size_t num) {
+static void ABGRtoARGB(std::uint32_t* pixels, std::size_t num) {
     for (std::size_t i = 0; i < num; i++) {
         uint8_t r = pixels[i];
         uint8_t b = pixels[i] >> (2*8);
@@ -16,7 +16,7 @@ static void ABGR2ARGB(std::uint32_t* pixels, std::size_t num) {
     }
 }
 
-static std::uint32_t* PNG_PALETTE2ARGB(PNG& png) {
+static std::uint32_t* PNG_PALETTEtoARGB(PNG& png) {
     std::uint32_t* out = static_cast<std::uint32_t*>(std::malloc(
         sizeof(std::uint32_t) * png.palette.numColors
     ));
@@ -55,7 +55,7 @@ int main() {
     uint32_t width, height;
     getDimensions(png, &width, &height, nullptr);
     uint32_t* pixels = loadPixels(png);
-    ABGR2ARGB(pixels, width*height);
+    ABGRtoARGB(pixels, width*height);
     BMP bmp{
         width, height, {.packed=pixels}
     };
@@ -67,7 +67,7 @@ int main() {
     png = loadPNG("dartboard.png");
     getDimensions(png, &width, &height, nullptr);
     pixels = loadPixels(png);
-    ABGR2ARGB(pixels, width*height);
+    ABGRtoARGB(pixels, width*height);
     bmp = {
         width, height, {.packed=pixels}
     };

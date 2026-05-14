@@ -37,7 +37,7 @@ struct [[gnu::packed]] Chunk{
 
 inline constexpr std::size_t Chunk::minSize = sizeof(Chunk) + sizeof(crc_t);
 
-//                            len+hdr+(chnk+crc)
+//                            len+hdr+(data+crc)
 static_assert(sizeof(Chunk) == 4 + 4 + 0);
 
 struct PNG_datastream{
